@@ -1,0 +1,51 @@
+version: '3.9'
+services:
+  mysql-db:
+    image: mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: katz12345
+      MYSQL_DATABASE: steamproject
+      MYSQL_USER: jpborjae1337
+      MYSQL_PASSWORD: katz12345
+      MYSQL_ROOT_HOST: '%'
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./SteamApp/db_init/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - db-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  
+  backend:
+    build:
+      context: ./
+    container_name: backend_app
+    restart: always
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mysql://jpborjae1337:katz12345@mysql-db:3306/steamproject
+      PYTHONPATH: /SteamApp  # ✅ Explicitly set PYTHONPATH
+    working_dir: /SteamApp  # ✅ Ensure we are inside the correct directory
+    volumes:
+      - ./SteamApp:/SteamApp
+    ports:
+      - "8000:8000"
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - db-network
+
+
+networks:
+  db-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+    driver: local
